@@ -88,6 +88,17 @@ async function createPackage(
   return targetPath;
 }
 
+async function createPlainPackage(
+  appDir: string,
+  files: Array<{ content: Buffer; name: string }>,
+): Promise<string> {
+  const archive = buildArchive(files);
+  const targetPath = path.join(appDir, 'plain.wxapkg');
+  await fs.mkdir(appDir, { recursive: true });
+  await fs.writeFile(targetPath, archive);
+  return targetPath;
+}
+
 test('unpack request decrypts archives and beautifies supported files', async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wxapkg-unpack-'));
 
@@ -170,6 +181,40 @@ test('unpack request rejects archive path traversal', async () => {
       ),
       /Invalid archive path/,
     );
+  } finally {
+    await fs.rm(tempRoot, { force: true, recursive: true });
+  }
+});
+
+test('unpack request supports plain wxapkg archives without decryption', async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wxapkg-plain-'));
+
+  try {
+    const wxid = 'wx1234567890abcdef';
+    const appDir = path.join(tempRoot, 'packages', wxid);
+    const outputRoot = path.join(tempRoot, 'output');
+    await createPlainPackage(appDir, [
+      {
+        content: Buffer.from('{"plain":true}', 'utf8'),
+        name: 'app.json',
+      },
+    ]);
+
+    const result = await unpackRequest(
+      {
+        appDir,
+        beautify: true,
+        jobId: 'job-plain',
+        outputDir: outputRoot,
+        wxid,
+      },
+      () => undefined,
+    );
+
+    assert.equal(result.fileCount, 1);
+
+    const jsonOutput = await fs.readFile(path.join(outputRoot, wxid, 'app.json'), 'utf8');
+    assert.match(jsonOutput, /"plain": true/);
   } finally {
     await fs.rm(tempRoot, { force: true, recursive: true });
   }

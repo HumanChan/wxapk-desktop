@@ -48,6 +48,8 @@ test('default scan finds wxapps and matches icons by wxid prefix', async () => {
     assert.equal(second.iconPath, null);
     assert.equal(first.wxapkgFiles.length, 1);
     assert.equal(second.wxapkgFiles.length, 1);
+    assert.equal(first.wxapkgFiles[0].relativePath, 'main.wxapkg');
+    assert.equal(second.wxapkgFiles[0].relativePath, path.join('sub', 'pack.wxapkg'));
   } finally {
     await fs.rm(tempRoot, { force: true, recursive: true });
   }
@@ -73,6 +75,8 @@ test('manual scan can group wxapkg files from an arbitrary directory', async () 
     assert.equal(entries[0].wxid, appId);
     assert.equal(entries[0].inputKind, 'appDir');
     assert.equal(entries[0].wxapkgFiles.length, 2);
+    assert.equal(entries[0].wxapkgFiles[0].relativePath, 'part1.wxapkg');
+    assert.equal(entries[0].wxapkgFiles[1].relativePath, path.join('sub', 'part2.wxapkg'));
   } finally {
     await fs.rm(tempRoot, { force: true, recursive: true });
   }

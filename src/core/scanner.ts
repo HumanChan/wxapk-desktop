@@ -45,13 +45,15 @@ async function findWxapkgFiles(root: string): Promise<string[]> {
   return results;
 }
 
-async function buildPackageEntries(filePaths: string[]): Promise<PackageEntry[]> {
+async function buildPackageEntries(filePaths: string[], baseDir: string): Promise<PackageEntry[]> {
   const packageEntries = await Promise.all(
     filePaths.map(async (filePath) => {
       const stats = await fs.stat(filePath);
+      const relativePath = path.relative(baseDir, filePath) || path.basename(filePath);
       return {
         mtimeMs: stats.mtimeMs,
         path: filePath,
+        relativePath,
         size: stats.size,
       };
     }),
@@ -122,7 +124,7 @@ async function createScanEntry(args: {
     source: args.source,
     userId: appletContext.userId,
     userRoot: appletContext.userRoot,
-    wxapkgFiles: await buildPackageEntries(args.wxapkgFiles),
+    wxapkgFiles: await buildPackageEntries(args.wxapkgFiles, args.appDir),
     wxid: args.wxid,
   };
 }

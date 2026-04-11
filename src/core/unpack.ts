@@ -130,6 +130,41 @@ export function parseDecryptedArchive(decryptedData: Buffer): ParsedArchiveEntry
   return entries;
 }
 
+function looksLikePlainArchive(buffer: Buffer): boolean {
+  return buffer.length > 14 &&
+    buffer[0] === WXAPKG_HEADER_MARK &&
+    buffer[13] === WXAPKG_FOOTER_MARK;
+}
+
+function parseArchiveWithFallback(wxid: string, packageData: Buffer): {
+  decryptedData: Buffer;
+  entries: ParsedArchiveEntry[];
+} {
+  if (looksLikePlainArchive(packageData)) {
+    return {
+      decryptedData: packageData,
+      entries: parseDecryptedArchive(packageData),
+    };
+  }
+
+  try {
+    const decryptedData = decryptWxapkg(wxid, packageData);
+    return {
+      decryptedData,
+      entries: parseDecryptedArchive(decryptedData),
+    };
+  } catch (error) {
+    if (!looksLikePlainArchive(packageData)) {
+      throw error;
+    }
+
+    return {
+      decryptedData: packageData,
+      entries: parseDecryptedArchive(packageData),
+    };
+  }
+}
+
 async function resolvePackageFiles(request: UnpackRequest): Promise<string[]> {
   if (request.packageFile) {
     return [path.resolve(request.packageFile)];
@@ -177,9 +212,11 @@ async function buildManifests(request: UnpackRequest): Promise<ArchiveManifest[]
 
   return Promise.all(
     packageFiles.map(async (packageFile) => {
-      const encryptedData = await fs.readFile(packageFile);
-      const decryptedData = decryptWxapkg(request.wxid, encryptedData);
-      const entries = parseDecryptedArchive(decryptedData);
+      const packageData = await fs.readFile(packageFile);
+      const { decryptedData, entries } = parseArchiveWithFallback(
+        request.wxid,
+        packageData,
+      );
       const relativeParent = appRoot
         ? path.relative(appRoot, path.dirname(packageFile))
         : '.';

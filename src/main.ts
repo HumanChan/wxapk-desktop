@@ -453,6 +453,20 @@ ipcMain.handle(IPC_CHANNELS.scanDefaultRoot, async (event) => {
   return attachIconUrls(entries);
 });
 
+ipcMain.handle(IPC_CHANNELS.getDefaultScanRoot, async (event) => {
+  assertTrustedSender(event.senderFrame?.url ?? '');
+  return DEFAULT_SCAN_ROOT;
+});
+
+ipcMain.handle(IPC_CHANNELS.scanRoot, async (event, rootPath: string) => {
+  assertTrustedSender(event.senderFrame?.url ?? '');
+  const entries = await runWorkerTask({
+    kind: 'scan-root',
+    root: rootPath,
+  });
+  return attachIconUrls(entries);
+});
+
 ipcMain.handle(IPC_CHANNELS.pickInput, async (event) => {
   assertTrustedSender(event.senderFrame?.url ?? '');
   const options: OpenDialogOptions = {

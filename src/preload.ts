@@ -14,6 +14,9 @@ const api: WxapkgDesktopApi = {
   cancelJob(jobId: string) {
     return ipcRenderer.invoke(IPC_CHANNELS.cancelJob, jobId);
   },
+  getDefaultScanRoot() {
+    return ipcRenderer.invoke(IPC_CHANNELS.getDefaultScanRoot) as Promise<string>;
+  },
   openPath(targetPath: string) {
     return ipcRenderer.invoke(IPC_CHANNELS.openPath, targetPath);
   },
@@ -28,6 +31,9 @@ const api: WxapkgDesktopApi = {
   },
   readOutputTree(targetPath: string) {
     return ipcRenderer.invoke(IPC_CHANNELS.readOutputTree, targetPath) as Promise<OutputTreeResult>;
+  },
+  scanRoot(rootPath: string) {
+    return ipcRenderer.invoke(IPC_CHANNELS.scanRoot, rootPath) as Promise<ScanEntry[]>;
   },
   scanDefaultRoot() {
     return ipcRenderer.invoke(IPC_CHANNELS.scanDefaultRoot) as Promise<ScanEntry[]>;

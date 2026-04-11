@@ -1,6 +1,7 @@
 export interface PackageEntry {
   mtimeMs: number;
   path: string;
+  relativePath: string;
   size: number;
 }
 
@@ -112,11 +113,13 @@ export type WorkerResponse =
 
 export interface WxapkgDesktopApi {
   cancelJob(jobId: string): Promise<void>;
+  getDefaultScanRoot(): Promise<string>;
   openPath(targetPath: string): Promise<string>;
   pickInput(): Promise<ScanEntry[]>;
   pickOutputDir(): Promise<string | null>;
   pickScanRoot(): Promise<ScanRootSelection | null>;
   readOutputTree(targetPath: string): Promise<OutputTreeResult>;
+  scanRoot(rootPath: string): Promise<ScanEntry[]>;
   scanDefaultRoot(): Promise<ScanEntry[]>;
   startUnpack(request: UnpackRequest): Promise<void>;
   subscribeJobEvents(listener: (event: JobEvent) => void): () => void;

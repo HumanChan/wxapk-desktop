@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertCircle,
@@ -19,6 +19,7 @@ import {
   Menu,
   PackageOpen,
   Play,
+  RefreshCcw,
   Search,
   Sparkles,
   Square,
@@ -76,6 +77,11 @@ interface TreeRow {
   node: OutputTreeNode;
 }
 
+const LIST_PANEL_DEFAULT_WIDTH = 360;
+const LIST_PANEL_MIN_WIDTH = 320;
+const LIST_PANEL_MAX_WIDTH = 520;
+const PREVIEW_PANEL_MIN_WIDTH = 760;
+
 const TEXT = {
   appCount: '个包文件',
   appName: 'WxApkTool',
@@ -128,11 +134,12 @@ const TEXT = {
   outputTab: '输出文件树预览',
   outputTabDesc: '展示真实解包后的目录结构。',
   packageTab: '包体文件树预览',
-  packageTabDesc: '根据 wxapkg 包路径构建的虚拟树，用来核对输入结构。',
+  packageTabDesc: '展示当前选中小程序包文件的目录结构，用来核对该小程序包本身的输入内容。',
   pendingWxid: '待输入 wxid',
   pickOutputDone: '输出目录已设置为',
   previewActions: '操作',
   refreshTree: '刷新文件树',
+  refreshList: '刷新列表',
   scanFail: '扫描失败：',
   selectedNode: '当前节点',
   sourceDefault: '默认扫描',
@@ -355,6 +362,37 @@ function createDirectoryNode(name: string, relativePath: string, absolutePath: s
   };
 }
 
+function normalizeRelativePath(input: string): string {
+  return input.replace(/\\/g, '/').replace(/^\/+/, '');
+}
+
+function basenameFromPath(input: string | null | undefined): string {
+  if (!input) {
+    return '';
+  }
+
+  const normalized = input.replace(/\\/g, '/').replace(/\/+$/, '');
+  const segments = normalized.split('/').filter(Boolean);
+  return segments.at(-1) ?? normalized;
+}
+
+function packageRootName(entry: ScanEntry | null): string {
+  if (!entry) {
+    return '包体目录';
+  }
+
+  return basenameFromPath(entry.appDir) || entry.wxid || '包体目录';
+}
+
+function clampListPanelWidth(nextWidth: number, containerWidth?: number): number {
+  const availableWidth = containerWidth ?? Number.POSITIVE_INFINITY;
+  const maxWidth = Number.isFinite(availableWidth)
+    ? Math.max(LIST_PANEL_MIN_WIDTH, Math.min(LIST_PANEL_MAX_WIDTH, availableWidth - PREVIEW_PANEL_MIN_WIDTH))
+    : LIST_PANEL_MAX_WIDTH;
+
+  return Math.min(Math.max(nextWidth, LIST_PANEL_MIN_WIDTH), maxWidth);
+}
+
 function sortTreeNodes(nodes: OutputTreeNode[]): OutputTreeNode[] {
   return nodes.sort((left, right) => {
     if (left.kind !== right.kind) {
@@ -383,11 +421,17 @@ function finalizeTree(node: OutputTreeNode): OutputTreeNode {
   };
 }
 
-function buildPackageTree(files: PackageEntry[]): { fileCount: number; root: OutputTreeNode } {
-  const root = createDirectoryNode('包体根目录', '.', '.');
+function buildPackageTree(
+  files: PackageEntry[],
+  rootName: string,
+): { fileCount: number; root: OutputTreeNode } {
+  const root = createDirectoryNode(rootName, '.', '.');
 
   for (const file of files) {
-    const normalizedPath = file.path.replace(/\\/g, '/');
+    const normalizedPath = normalizeRelativePath(file.relativePath || file.path);
+    if (!normalizedPath) {
+      continue;
+    }
     const segments = normalizedPath.split('/').filter(Boolean);
     let current = root;
     let relativePath = '';
@@ -505,7 +549,7 @@ function ActionMenu({ actions }: { actions: ActionItem[] }): React.JSX.Element {
   return (
     <div className="relative" ref={menuRef}>
       <Button
-        className="rounded-full border-slate-300/70 bg-white/90 px-4 dark:border-white/10 dark:bg-white/10"
+        className="rounded-2xl border-border/70 bg-background/80 px-4 shadow-sm hover:bg-accent"
         onClick={() => setOpen((current) => !current)}
         type="button"
         variant="outline"
@@ -557,11 +601,11 @@ function TopToolbar({
   onToggleList: () => void;
 }): React.JSX.Element {
   return (
-    <div className="rounded-[1.9rem] border border-slate-200/80 bg-sky-50/90 px-4 py-3 shadow-lg shadow-slate-200/35 backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/80 dark:shadow-none">
+    <div className="rounded-[1.9rem] border border-border/70 bg-white/80 px-4 py-3 shadow-xl shadow-slate-200/35 backdrop-blur-2xl dark:border-white/10 dark:bg-white/5 dark:shadow-none">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Button
-            className="rounded-full xl:hidden"
+            className="rounded-2xl xl:hidden"
             onClick={onToggleList}
             size="icon"
             type="button"
@@ -574,37 +618,37 @@ function TopToolbar({
           </div>
         </div>
 
-        <div className="flex flex-1 flex-wrap items-center justify-center gap-2 max-xl:w-full max-xl:justify-start">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 max-xl:w-full">
           <Button
-            className="h-11 rounded-full border-violet-200 bg-white/95 px-5 font-semibold text-slate-700 shadow-sm hover:bg-white dark:border-violet-500/30 dark:bg-white/10 dark:text-slate-100"
+            className="h-11 rounded-2xl border-border/70 bg-background/80 px-4 font-semibold shadow-sm hover:bg-accent"
             onClick={() => void onImportInput()}
             type="button"
             variant="outline"
           >
-            <FolderOpen className="text-violet-600 dark:text-violet-300" />
+            <FolderOpen />
             {TEXT.importInput}
           </Button>
           <Button
-            className="h-11 rounded-full border-violet-200 bg-white/95 px-5 font-semibold text-slate-700 shadow-sm hover:bg-white dark:border-violet-500/30 dark:bg-white/10 dark:text-slate-100"
+            className="h-11 rounded-2xl border-border/70 bg-background/80 px-4 font-semibold shadow-sm hover:bg-accent"
             onClick={() => void onPickScanRoot()}
             type="button"
             variant="outline"
           >
-            {isScanning ? <Loader2 className="animate-spin text-violet-600 dark:text-violet-300" /> : <HardDriveDownload className="text-violet-600 dark:text-violet-300" />}
+            {isScanning ? <Loader2 className="animate-spin" /> : <HardDriveDownload />}
             {TEXT.inputDir}
           </Button>
           <Button
-            className="h-11 rounded-full border-violet-200 bg-white/95 px-5 font-semibold text-slate-700 shadow-sm hover:bg-white dark:border-violet-500/30 dark:bg-white/10 dark:text-slate-100"
+            className="h-11 rounded-2xl border-border/70 bg-background/80 px-4 font-semibold shadow-sm hover:bg-accent"
             onClick={() => void onChooseOutputDir()}
             type="button"
             variant="outline"
           >
-            <FolderOutput className="text-violet-600 dark:text-violet-300" />
+            <FolderOutput />
             {TEXT.chooseOutputDir}
           </Button>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
         </div>
       </div>
@@ -615,33 +659,49 @@ function TopToolbar({
 function ListPanel({
   entries,
   filteredEntries,
+  isRefreshDisabled,
   isScanning,
   keyword,
+  onRefresh,
   onKeywordChange,
   onSelectEntry,
   selectedEntry,
 }: {
   entries: ScanEntry[];
   filteredEntries: ScanEntry[];
+  isRefreshDisabled: boolean;
   isScanning: boolean;
   keyword: string;
+  onRefresh: () => Promise<void>;
   onKeywordChange: (value: string) => void;
   onSelectEntry: (entryId: string) => void;
   selectedEntry: ScanEntry | null;
 }): React.JSX.Element {
   return (
-    <div className="flex h-full min-h-[32rem] flex-col rounded-[1.9rem] border border-lime-200/70 bg-lime-100/70 p-3 shadow-lg shadow-lime-100/40 dark:border-lime-500/20 dark:bg-lime-950/20 dark:shadow-none">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
-        <Input
-          className="h-11 rounded-full border-white/80 bg-white/95 pl-10 shadow-sm dark:border-white/10 dark:bg-white/10"
-          onChange={(event) => onKeywordChange(event.target.value)}
-          placeholder={TEXT.listPlaceholder}
-          value={keyword}
-        />
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.9rem] border border-border/70 bg-white/75 p-3 shadow-2xl shadow-slate-200/25 backdrop-blur-2xl dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-11 rounded-2xl border-border/70 bg-background/80 pl-10 shadow-sm"
+            onChange={(event) => onKeywordChange(event.target.value)}
+            placeholder={TEXT.listPlaceholder}
+            value={keyword}
+          />
+        </div>
+        <Button
+          className="h-11 rounded-2xl px-3"
+          disabled={isRefreshDisabled || isScanning}
+          onClick={() => void onRefresh()}
+          type="button"
+          variant="outline"
+        >
+          {isScanning ? <Loader2 className="animate-spin" /> : <RefreshCcw />}
+          <span className="sr-only">{TEXT.refreshList}</span>
+        </Button>
       </div>
 
-      <div className="mt-4 flex-1 overflow-hidden rounded-[1.5rem] bg-white/45 p-2 dark:bg-black/10">
+      <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-[1.5rem] border border-border/60 bg-slate-50/70 p-2 dark:bg-white/[0.03]">
         <ScrollArea className="h-full pr-1">
           <div className="space-y-2">
             {filteredEntries.length > 0 ? (
@@ -651,8 +711,8 @@ function ListPanel({
                   <button
                     className={`w-full rounded-[1.35rem] border px-3 py-3 text-left transition-all ${
                       active
-                        ? 'border-emerald-300 bg-white shadow-sm dark:border-emerald-400/40 dark:bg-white/10'
-                        : 'border-transparent bg-white/55 hover:border-white/90 hover:bg-white/85 dark:bg-white/5 dark:hover:border-white/15 dark:hover:bg-white/10'
+                        ? 'border-primary/35 bg-white shadow-lg shadow-slate-200/30 dark:bg-white/8 dark:shadow-none'
+                        : 'border-transparent bg-transparent hover:border-border/70 hover:bg-white/80 dark:hover:bg-white/5'
                     }`}
                     key={entry.id}
                     onClick={() => onSelectEntry(entry.id)}
@@ -661,7 +721,7 @@ function ListPanel({
                     <div className="flex items-center gap-3">
                       <EntryIcon entry={entry} />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                        <div className="break-all text-[13px] font-bold leading-5 text-slate-900 dark:text-white">
                           {entry.wxid ?? TEXT.pendingWxid}
                         </div>
                         <div className="mt-1 truncate text-xs text-muted-foreground">
@@ -719,7 +779,7 @@ function InfoStrip({
   treeStatus: TreeStatus;
 }): React.JSX.Element {
   return (
-    <div className="rounded-[1.9rem] border border-cyan-200/70 bg-cyan-100/80 p-4 shadow-lg shadow-cyan-100/40 dark:border-cyan-400/20 dark:bg-cyan-950/20 dark:shadow-none">
+    <div className="rounded-[1.9rem] border border-border/70 bg-white/80 p-4 shadow-2xl shadow-slate-200/35 backdrop-blur-2xl dark:border-white/10 dark:bg-white/5 dark:shadow-none">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
@@ -734,11 +794,11 @@ function InfoStrip({
               <div className="truncate text-base font-black tracking-tight text-slate-900 dark:text-white">
                 {selectedEntry?.wxid ?? TEXT.appName}
               </div>
-              <div className="truncate text-sm text-slate-600 dark:text-slate-300">
+              <div className="truncate text-sm text-muted-foreground">
                 {selectedEntry?.appDir ?? TEXT.subtitle}
               </div>
               {selectedEntry ? (
-                <div className="mt-1 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="mt-1 truncate text-[11px] text-muted-foreground">
                   {TEXT.inputDir}: {scanRootLabel}
                 </div>
               ) : null}
@@ -757,7 +817,7 @@ function InfoStrip({
           {!selectedEntry?.wxid && selectedEntry ? (
             <div className="mt-3 max-w-sm">
               <Input
-                className="h-10 rounded-full border-white/80 bg-white/95 dark:border-white/10 dark:bg-white/10"
+                className="h-10 rounded-2xl border-border/70 bg-background/80"
                 onChange={(event) => onManualWxidChange(event.target.value)}
                 placeholder={TEXT.manualWxidPlaceholder}
                 value={manualWxid}
@@ -767,17 +827,17 @@ function InfoStrip({
         </div>
 
         <div className="flex min-w-[16rem] flex-col gap-3 xl:w-[18rem]">
-          <div className="rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-3 dark:border-white/10 dark:bg-white/10">
+          <div className="rounded-[1.4rem] border border-border/70 bg-slate-50/80 px-4 py-3 dark:bg-white/[0.04]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">自动格式化</div>
+                <div className="text-xs font-semibold text-slate-700 dark:text-slate-200">自动格式化</div>
                 <div className="text-[11px] text-muted-foreground">JSON / HTML / JS 会自动美化</div>
               </div>
               <Switch checked={beautify} onCheckedChange={onBeautifyChange} />
             </div>
           </div>
 
-          <div className="rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-3 dark:border-white/10 dark:bg-white/10">
+          <div className="rounded-[1.4rem] border border-border/70 bg-slate-50/80 px-4 py-3 dark:bg-white/[0.04]">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300">
               <span>{TEXT.outputPath}</span>
               <Badge className="rounded-full px-2 py-0.5" variant={outputDir ? 'secondary' : 'outline'}>
@@ -801,19 +861,19 @@ function InfoStrip({
         </div>
 
         <div className="w-full min-w-[15rem] xl:w-[18rem]">
-          <div className="rounded-[1.5rem] border border-white/80 bg-white/90 p-4 dark:border-white/10 dark:bg-white/10">
+          <div className="rounded-[1.5rem] border border-border/70 bg-slate-50/80 p-4 dark:bg-white/[0.04]">
             <div className="flex items-center justify-between gap-3">
               <Badge className="rounded-full px-3 py-1" variant={jobStatusVariant(job.type)}>
                 {jobStatusText(job.type)}
               </Badge>
-              <div className="text-sm font-bold text-slate-700 dark:text-slate-100">{job.progress}%</div>
+              <div className="text-sm font-bold text-primary">{job.progress}%</div>
             </div>
             <Progress className="mt-3 h-2.5 rounded-full bg-slate-200/80 dark:bg-white/10" value={job.progress} />
             <div className="mt-3 text-[11px] leading-5 text-muted-foreground">
               {job.message}
             </div>
             <Button
-              className="mt-4 h-12 w-full rounded-2xl bg-slate-900 font-bold text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+              className="mt-4 h-12 w-full rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 font-bold text-white shadow-xl shadow-blue-500/25 hover:brightness-110"
               disabled={!canStart}
               onClick={() => void onStartUnpack()}
               type="button"
@@ -847,21 +907,21 @@ function TreeTable({
 }): React.JSX.Element {
   if (!root) {
     return (
-      <div className="flex min-h-[24rem] items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300/80 bg-white/45 px-6 text-center text-sm text-muted-foreground dark:border-white/15 dark:bg-white/5">
+      <div className="flex h-full min-h-0 items-center justify-center rounded-[1.5rem] border border-dashed border-border/70 bg-slate-50/70 px-6 text-center text-sm text-muted-foreground dark:bg-white/[0.03]">
         {emptyText}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/65 dark:border-white/10 dark:bg-slate-950/35">
-      <div className="grid grid-cols-[minmax(0,1.8fr)_110px_110px_120px] gap-3 border-b border-slate-200/80 bg-white/70 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] border border-border/70 bg-white/70 dark:border-white/10 dark:bg-slate-950/35">
+      <div className="grid grid-cols-[minmax(0,1.8fr)_110px_110px_120px] gap-3 border-b border-border/70 bg-slate-50/80 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:bg-white/[0.04] dark:text-slate-400">
         <div>名称</div>
         <div>大小</div>
         <div>类型</div>
         <div>更新时间</div>
       </div>
-      <ScrollArea className="h-[30rem]">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="divide-y divide-slate-200/70 dark:divide-white/8">
           {visibleRows.map(({ depth, node }) => {
             const isSelected = node.absolutePath === selectedPath;
@@ -872,7 +932,7 @@ function TreeTable({
             return (
               <button
                 className={`grid w-full grid-cols-[minmax(0,1.8fr)_110px_110px_120px] gap-3 px-4 py-3 text-left text-sm transition-colors ${
-                  isSelected ? 'bg-emerald-100/70 dark:bg-emerald-500/10' : 'hover:bg-white/80 dark:hover:bg-white/5'
+                  isSelected ? 'bg-primary/8' : 'hover:bg-accent/50'
                 }`}
                 key={node.id}
                 onClick={() => {
@@ -918,7 +978,7 @@ function TreeTable({
 
 function LogsPanel({ logs }: { logs: LogItem[] }): React.JSX.Element {
   return (
-    <div className="overflow-hidden rounded-[1.5rem] border border-slate-800/60 bg-[#0d1324] p-4 text-slate-100">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] border border-slate-800/60 bg-[#0d1324] p-4 text-slate-100">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex gap-1.5">
@@ -932,8 +992,8 @@ function LogsPanel({ logs }: { logs: LogItem[] }): React.JSX.Element {
           </div>
         </div>
       </div>
-      <ScrollArea className="h-[30rem] pr-2">
-        <div className="space-y-3">
+      <ScrollArea className="min-h-0 flex-1 pr-2">
+        <div className="space-y-2">
           {logs.length > 0 ? (
             logs.map((log, index) => {
               const icon =
@@ -944,10 +1004,10 @@ function LogsPanel({ logs }: { logs: LogItem[] }): React.JSX.Element {
                     : <Sparkles className="mt-0.5 size-3.5 text-sky-400" />;
 
               return (
-                <div className="flex items-start gap-3 font-mono text-xs" key={log.id}>
+                <div className="flex items-start gap-3 font-mono text-xs leading-5" key={log.id}>
                   <span className="mt-0.5 text-slate-500">{String(index + 1).padStart(2, '0')}</span>
                   {icon}
-                  <div className="min-w-0 flex-1 leading-6">
+                  <div className="min-w-0 flex-1 leading-5">
                     <span className="mr-2 text-slate-500">[{formatClock(log.createdAt)}]</span>
                     <span className={log.tone === 'error' ? 'text-rose-100' : log.tone === 'success' ? 'text-emerald-100' : 'text-slate-200'}>
                       {log.text}
@@ -1015,15 +1075,15 @@ function PreviewTabs({
   ];
 
   return (
-    <div className="flex min-h-[34rem] flex-col rounded-[1.9rem] border border-yellow-200/70 bg-yellow-50/85 p-4 shadow-lg shadow-yellow-100/45 dark:border-yellow-400/15 dark:bg-yellow-950/12 dark:shadow-none">
-      <div className="flex flex-col gap-3 border-b border-yellow-200/70 pb-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.9rem] border border-border/70 bg-white/75 p-4 shadow-2xl shadow-slate-200/30 backdrop-blur-2xl dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+      <div className="flex flex-col gap-3 border-b border-border/70 pb-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex w-fit flex-wrap rounded-2xl border border-border/70 bg-slate-100/85 p-1 dark:bg-white/[0.04]">
           {tabs.map((tab) => (
             <button
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-white dark:text-slate-900'
-                  : 'bg-white/55 text-slate-600 hover:bg-white/85 dark:bg-white/8 dark:text-slate-200 dark:hover:bg-white/12'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               key={tab.id}
               onClick={() => onChange(tab.id)}
@@ -1043,9 +1103,9 @@ function PreviewTabs({
         </div>
       </div>
 
-      <div className="mt-4 flex-1">
+      <div className="mt-4 min-h-0 flex-1 overflow-hidden">
         {activeTab === 'packages' ? (
-          <div className="space-y-3">
+          <div className="flex h-full min-h-0 flex-col gap-3">
             <div className="text-sm text-slate-600 dark:text-slate-300">{TEXT.packageTabDesc}</div>
             <TreeTable
               emptyText={selectedEntry ? TEXT.emptyPackages : TEXT.emptySelection}
@@ -1059,14 +1119,14 @@ function PreviewTabs({
         ) : null}
 
         {activeTab === 'logs' ? (
-          <div className="space-y-3">
+          <div className="flex h-full min-h-0 flex-col gap-3">
             <div className="text-sm text-slate-600 dark:text-slate-300">{TEXT.logsTabDesc}</div>
             <LogsPanel logs={logs} />
           </div>
         ) : null}
 
         {activeTab === 'output' ? (
-          <div className="space-y-3">
+          <div className="flex h-full min-h-0 flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
               <span>{TEXT.outputTabDesc}</span>
               <div className="flex items-center gap-2">
@@ -1074,7 +1134,7 @@ function PreviewTabs({
                   {treeFileCount > 0 ? `${treeFileCount} files` : treeStatusText(outputStatus)}
                 </Badge>
                 <Button
-                  className="rounded-full"
+                  className="rounded-2xl"
                   disabled={!outputRoot}
                   onClick={() => void onOpenOutputDirectory()}
                   type="button"
@@ -1086,7 +1146,7 @@ function PreviewTabs({
               </div>
             </div>
             {outputStatus === 'loading' ? (
-              <div className="flex min-h-[24rem] items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300/80 bg-white/45 text-sm text-muted-foreground dark:border-white/15 dark:bg-white/5">
+              <div className="flex h-full min-h-0 items-center justify-center rounded-[1.5rem] border border-dashed border-border/70 bg-slate-50/70 text-sm text-muted-foreground dark:bg-white/[0.03]">
                 <Loader2 className="mr-2 size-5 animate-spin text-primary" />
                 {TEXT.loadTreeStart}
               </div>
@@ -1096,7 +1156,7 @@ function PreviewTabs({
                 <div className="mt-2 break-all leading-6">{treeError}</div>
               </div>
             ) : outputStatus === 'empty' ? (
-              <div className="flex min-h-[24rem] items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300/80 bg-white/45 px-6 text-center text-sm text-muted-foreground dark:border-white/15 dark:bg-white/5">
+              <div className="flex h-full min-h-0 items-center justify-center rounded-[1.5rem] border border-dashed border-border/70 bg-slate-50/70 px-6 text-center text-sm text-muted-foreground dark:bg-white/[0.03]">
                 {TEXT.tabOutputEmpty}
               </div>
             ) : (
@@ -1122,11 +1182,15 @@ export function App(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
   const [outputDir, setOutputDir] = useState('');
-  const [scanRootLabel, setScanRootLabel] = useState(TEXT.defaultRoot);
+  const [defaultScanRoot, setDefaultScanRoot] = useState('');
+  const [scanRootLabel, setScanRootLabel] = useState('');
+  const [currentScanRoot, setCurrentScanRoot] = useState('');
+  const [canRefreshList, setCanRefreshList] = useState(true);
   const [beautify, setBeautify] = useState(true);
   const [manualWxid, setManualWxid] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [isListOpen, setIsListOpen] = useState(false);
+  const [listPanelWidth, setListPanelWidth] = useState(LIST_PANEL_DEFAULT_WIDTH);
   const [scanError, setScanError] = useState<string | null>(null);
   const [job, setJob] = useState<JobViewState>(EMPTY_JOB);
   const [logs, setLogs] = useState<LogItem[]>([]);
@@ -1144,6 +1208,8 @@ export function App(): React.JSX.Element {
   const deferredKeyword = useDeferredValue(keyword.trim().toLowerCase());
   const activeJobMetaRef = useRef<{ entryId: string; outputDir: string; wxid: string } | null>(null);
   const outputTreeLoadVersionRef = useRef(0);
+  const desktopLayoutRef = useRef<HTMLDivElement | null>(null);
+  const resizeSessionRef = useRef<{ startWidth: number; startX: number } | null>(null);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedId) ?? entries[0] ?? null,
@@ -1160,6 +1226,7 @@ export function App(): React.JSX.Element {
         entry.wxid,
         entry.userId,
         entry.appDir,
+        entry.wxapkgFiles.map((item) => item.relativePath).join(' '),
         entry.wxapkgFiles.map((item) => item.path).join(' '),
       ]
         .filter(Boolean)
@@ -1172,7 +1239,7 @@ export function App(): React.JSX.Element {
   );
 
   const packageTree = useMemo(
-    () => buildPackageTree(selectedEntry?.wxapkgFiles ?? []),
+    () => buildPackageTree(selectedEntry?.wxapkgFiles ?? [], packageRootName(selectedEntry)),
     [selectedEntry],
   );
   const packageExpandedSet = useMemo(() => new Set(expandedPackagePaths), [expandedPackagePaths]);
@@ -1195,6 +1262,11 @@ export function App(): React.JSX.Element {
     ? findTreeNode(outputTreeRoot, selectedOutputPath) ?? outputTreeRoot
     : null;
   const resolvedWxid = selectedEntry?.wxid ?? manualWxid.trim();
+  const selectedJob = selectedEntry && job.entryId === selectedEntry.id ? job : EMPTY_JOB;
+  const selectedOutputDir =
+    (selectedEntry && outputTreeEntryId === selectedEntry.id ? outputTreeRootDir : null)
+    ?? selectedJob.outputDir
+    ?? outputDir;
   const canStart = Boolean(selectedEntry && outputDir.trim() && resolvedWxid && !job.running);
   const selectedPreviewNode = activeTab === 'output' ? selectedOutputNode : selectedPackageNode;
 
@@ -1288,14 +1360,39 @@ export function App(): React.JSX.Element {
     }
   }
 
+  async function scanRootEntries(rootPath: string, sourceLabel: string): Promise<void> {
+    setIsScanning(true);
+    setScanError(null);
+    pushLog(`${TEXT.inputDirOpen}: ${rootPath}`);
+
+    try {
+      const nextEntries = await window.wxapkg.scanRoot(rootPath);
+      setCurrentScanRoot(rootPath);
+      setCanRefreshList(true);
+      setScanRootLabel(rootPath);
+      applyEntries(nextEntries, sourceLabel);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setScanError(`${TEXT.scanFail}${message}`);
+      pushLog(`${TEXT.scanFail}${message}`, 'error');
+    } finally {
+      setIsScanning(false);
+    }
+  }
+
   async function scanDefaultRoot(): Promise<void> {
     setIsScanning(true);
-    setScanRootLabel(TEXT.defaultRoot);
     setScanError(null);
     pushLog(TEXT.defaultScanStart);
 
     try {
-      applyEntries(await window.wxapkg.scanDefaultRoot(), TEXT.defaultScanDone);
+      const rootPath = await window.wxapkg.getDefaultScanRoot();
+      const nextEntries = await window.wxapkg.scanDefaultRoot();
+      setDefaultScanRoot(rootPath);
+      setScanRootLabel(rootPath);
+      setCurrentScanRoot(rootPath);
+      setCanRefreshList(true);
+      applyEntries(nextEntries, TEXT.defaultScanDone);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setScanError(`${TEXT.scanFail}${message}`);
@@ -1317,6 +1414,8 @@ export function App(): React.JSX.Element {
         return;
       }
 
+      setCurrentScanRoot(result.rootPath);
+      setCanRefreshList(true);
       setScanRootLabel(result.rootPath);
       applyEntries(result.entries, TEXT.inputDirDone);
     } catch (error) {
@@ -1340,6 +1439,7 @@ export function App(): React.JSX.Element {
         return;
       }
 
+      setCanRefreshList(false);
       setScanRootLabel(TEXT.importInput);
       applyEntries(nextEntries, TEXT.importDone);
     } catch (error) {
@@ -1349,6 +1449,17 @@ export function App(): React.JSX.Element {
     } finally {
       setIsScanning(false);
     }
+  }
+
+  async function refreshList(): Promise<void> {
+    if (!canRefreshList) {
+      return;
+    }
+
+    await scanRootEntries(
+      currentScanRoot,
+      currentScanRoot === defaultScanRoot ? TEXT.defaultScanDone : TEXT.inputDirDone,
+    );
   }
 
   async function chooseOutputDir(): Promise<void> {
@@ -1428,7 +1539,7 @@ export function App(): React.JSX.Element {
   }
 
   async function openOutputDirectory(): Promise<void> {
-    const targetPath = job.outputDir ?? outputTreeRootDir ?? outputDir;
+    const targetPath = selectedOutputDir;
     if (!targetPath) {
       return;
     }
@@ -1454,11 +1565,11 @@ export function App(): React.JSX.Element {
   }
 
   async function cancelJob(): Promise<void> {
-    if (!job.id || !job.running) {
+    if (!selectedJob.id || !selectedJob.running) {
       return;
     }
 
-    await window.wxapkg.cancelJob(job.id);
+    await window.wxapkg.cancelJob(selectedJob.id);
   }
 
   async function copyValue(label: string, value: string | null): Promise<void> {
@@ -1476,7 +1587,68 @@ export function App(): React.JSX.Element {
   }
 
   useEffect(() => {
-    void scanDefaultRoot();
+    void (async () => {
+      const storedWidth = window.localStorage.getItem('wxapkg:list-panel-width');
+      if (storedWidth) {
+        const parsedWidth = Number.parseInt(storedWidth, 10);
+        if (Number.isFinite(parsedWidth)) {
+          setListPanelWidth(clampListPanelWidth(parsedWidth));
+        }
+      }
+
+      try {
+        const rootPath = await window.wxapkg.getDefaultScanRoot();
+        setDefaultScanRoot(rootPath);
+        setScanRootLabel(rootPath);
+        setCurrentScanRoot(rootPath);
+      } catch {
+        // Let the initial scan surface the actual error state.
+      }
+
+      await scanDefaultRoot();
+    })();
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('wxapkg:list-panel-width', String(listPanelWidth));
+  }, [listPanelWidth]);
+
+  useEffect(() => {
+    const updateWidthWithinBounds = (): void => {
+      const containerWidth = desktopLayoutRef.current?.clientWidth;
+      setListPanelWidth((current) => clampListPanelWidth(current, containerWidth));
+    };
+
+    updateWidthWithinBounds();
+    window.addEventListener('resize', updateWidthWithinBounds);
+    return () => window.removeEventListener('resize', updateWidthWithinBounds);
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent): void => {
+      const session = resizeSessionRef.current;
+      if (!session) {
+        return;
+      }
+
+      const containerWidth = desktopLayoutRef.current?.clientWidth;
+      const nextWidth = clampListPanelWidth(
+        session.startWidth + (event.clientX - session.startX),
+        containerWidth,
+      );
+      setListPanelWidth(nextWidth);
+    };
+
+    const handlePointerUp = (): void => {
+      resizeSessionRef.current = null;
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
   }, []);
 
   useEffect(() => {
@@ -1543,7 +1715,7 @@ export function App(): React.JSX.Element {
       onSelect: openAppDir,
     },
     {
-      disabled: !(job.outputDir ?? outputTreeRootDir ?? outputDir),
+      disabled: !selectedOutputDir,
       label: TEXT.finderOutput,
       onSelect: openOutputDirectory,
     },
@@ -1563,20 +1735,24 @@ export function App(): React.JSX.Element {
       onSelect: () => copyValue('缓存路径 ', selectedEntry?.appDir ?? null),
     },
     {
-      disabled: !(job.outputDir ?? outputTreeRootDir ?? outputDir),
+      disabled: !selectedOutputDir,
       label: TEXT.copyOutput,
-      onSelect: () => copyValue('输出路径 ', job.outputDir ?? outputTreeRootDir ?? outputDir),
+      onSelect: () => copyValue('输出路径 ', selectedOutputDir),
     },
     {
-      disabled: !job.running,
+      disabled: !selectedJob.running,
       label: TEXT.cancelJob,
       onSelect: cancelJob,
     },
   ];
 
+  const desktopGridStyle = {
+    '--list-panel-width': `${listPanelWidth}px`,
+  } as CSSProperties;
+
   return (
-    <div className="min-h-screen bg-[#ececec] px-3 py-3 text-foreground dark:bg-[#05070b]">
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-[1760px] flex-col gap-3">
+    <div className="h-screen overflow-hidden bg-background px-3 py-3 text-foreground">
+      <div className="mx-auto flex h-full min-h-0 max-w-[1760px] flex-col gap-3 overflow-hidden">
         <TopToolbar
           isScanning={isScanning}
           onChooseOutputDir={chooseOutputDir}
@@ -1585,17 +1761,39 @@ export function App(): React.JSX.Element {
           onToggleList={() => setIsListOpen(true)}
         />
 
-        <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[260px_minmax(0,1fr)]">
+        <div
+          className="grid min-h-0 flex-1 gap-3 overflow-hidden xl:grid-cols-[var(--list-panel-width)_12px_minmax(0,1fr)]"
+          ref={desktopLayoutRef}
+          style={desktopGridStyle}
+        >
           <div className="hidden min-h-0 xl:block">
             <ListPanel
               entries={entries}
               filteredEntries={filteredEntries}
+              isRefreshDisabled={!canRefreshList}
               isScanning={isScanning}
               keyword={keyword}
+              onRefresh={refreshList}
               onKeywordChange={setKeyword}
               onSelectEntry={setSelectedId}
               selectedEntry={selectedEntry}
             />
+          </div>
+
+          <div className="relative hidden xl:flex min-h-0 items-stretch justify-center">
+            <button
+              aria-label="调整列表宽度"
+              className="group flex h-full w-3 cursor-col-resize items-center justify-center"
+              onPointerDown={(event) => {
+                resizeSessionRef.current = {
+                  startWidth: listPanelWidth,
+                  startX: event.clientX,
+                };
+              }}
+              type="button"
+            >
+              <span className="h-full w-px rounded-full bg-border/80 transition-all duration-150 group-hover:w-[3px] group-hover:bg-primary/35 group-focus-visible:w-[3px] group-focus-visible:bg-primary/45" />
+            </button>
           </div>
 
           <AnimatePresence>
@@ -1614,12 +1812,14 @@ export function App(): React.JSX.Element {
                   initial={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <div className="relative h-full">
+                  <div className="relative h-full overflow-hidden">
                     <ListPanel
                       entries={entries}
                       filteredEntries={filteredEntries}
+                      isRefreshDisabled={!canRefreshList}
                       isScanning={isScanning}
                       keyword={keyword}
+                      onRefresh={refreshList}
                       onKeywordChange={setKeyword}
                       onSelectEntry={(entryId) => {
                         setSelectedId(entryId);
@@ -1642,11 +1842,11 @@ export function App(): React.JSX.Element {
             ) : null}
           </AnimatePresence>
 
-          <div className="flex min-h-0 flex-col gap-3">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
             <InfoStrip
               beautify={beautify}
               canStart={canStart}
-              job={job}
+              job={selectedJob}
               manualWxid={manualWxid}
               onBeautifyChange={setBeautify}
               onManualWxidChange={setManualWxid}

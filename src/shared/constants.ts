@@ -9,8 +9,10 @@ export const DEFAULT_SCAN_ROOT =
         'Containers',
         'com.tencent.xinWeChat',
         'Data',
-        '.wxapplet',
-        'packages',
+        'Documents',
+        'app_data',
+        'radium',
+        'users',
       )
     : 'C:\\Users\\admin\\AppData\\Roaming\\Tencent\\xwechat\\radium\\users';
 
