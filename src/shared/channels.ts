@@ -4,6 +4,8 @@ export const IPC_CHANNELS = {
   openPath: 'wxapkg:open-path',
   pickInput: 'wxapkg:pick-input',
   pickOutputDir: 'wxapkg:pick-output-dir',
+  pickScanRoot: 'wxapkg:pick-scan-root',
+  readOutputTree: 'wxapkg:read-output-tree',
   scanDefaultRoot: 'wxapkg:scan-default-root',
   startUnpack: 'wxapkg:start-unpack',
 } as const;

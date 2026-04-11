@@ -15,6 +15,7 @@ import {
 } from 'electron';
 
 import { IPC_CHANNELS } from './shared/channels';
+import { readOutputTree, resolveAllowedOutputTreePath } from './core/output-tree';
 import { APP_PROTOCOL, DEFAULT_SCAN_ROOT } from './shared/constants';
 import type { JobEvent, ScanEntry, UnpackRequest, WorkerRequest, WorkerResponse } from './shared/types';
 import { IconRegistry } from './main/icon-registry';
@@ -37,6 +38,7 @@ protocol.registerSchemesAsPrivileged([
 const iconRegistry = new IconRegistry();
 const activeJobs = new Map<string, { sender: WebContents; worker: Worker }>();
 const cancelledJobs = new Set<string>();
+const allowedOutputRoots = new Set<string>();
 const rendererRoot = path.resolve(__dirname, '../renderer');
 const preloadPath = path.join(__dirname, 'preload.js');
 const isDev = Boolean(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -317,6 +319,7 @@ function spawnUnpackJob(sender: WebContents, request: UnpackRequest): void {
     }
 
     if (payload.kind === 'unpack-result') {
+      allowedOutputRoots.add(path.resolve(payload.outputDir));
       cleanupJob(payload.jobId);
       return;
     }
@@ -494,6 +497,39 @@ ipcMain.handle(IPC_CHANNELS.pickOutputDir, async (event) => {
   }
 
   return result.filePaths[0];
+});
+
+ipcMain.handle(IPC_CHANNELS.pickScanRoot, async (event) => {
+  assertTrustedSender(event.senderFrame?.url ?? '');
+  const options: OpenDialogOptions = {
+    properties: ['openDirectory'],
+    title: '选择微信缓存根目录或 packages 目录',
+  };
+  const parentWindow = senderWindow(event.sender);
+  const result = parentWindow
+    ? await dialog.showOpenDialog(parentWindow, options)
+    : await dialog.showOpenDialog(options);
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const rootPath = result.filePaths[0];
+  const entries = await runWorkerTask({
+    kind: 'scan-root',
+    root: rootPath,
+  });
+
+  return {
+    entries: attachIconUrls(entries),
+    rootPath,
+  };
+});
+
+ipcMain.handle(IPC_CHANNELS.readOutputTree, async (event, targetPath: string) => {
+  assertTrustedSender(event.senderFrame?.url ?? '');
+  const safePath = resolveAllowedOutputTreePath(allowedOutputRoots, targetPath);
+  return readOutputTree(safePath);
 });
 
 ipcMain.handle(IPC_CHANNELS.openPath, async (event, targetPath: string) => {

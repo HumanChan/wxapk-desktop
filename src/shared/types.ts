@@ -4,6 +4,28 @@ export interface PackageEntry {
   size: number;
 }
 
+export interface OutputTreeNode {
+  absolutePath: string;
+  children?: OutputTreeNode[];
+  extension?: string | null;
+  id: string;
+  kind: 'directory' | 'file';
+  mtimeMs: number;
+  name: string;
+  relativePath: string;
+  size: number;
+}
+
+export interface OutputTreeResult {
+  fileCount: number;
+  root: OutputTreeNode;
+}
+
+export interface ScanRootSelection {
+  entries: ScanEntry[];
+  rootPath: string;
+}
+
 export type ScanEntrySource = 'default-scan' | 'manual';
 export type ScanEntryInputKind = 'appDir' | 'packageFile';
 
@@ -93,6 +115,8 @@ export interface WxapkgDesktopApi {
   openPath(targetPath: string): Promise<string>;
   pickInput(): Promise<ScanEntry[]>;
   pickOutputDir(): Promise<string | null>;
+  pickScanRoot(): Promise<ScanRootSelection | null>;
+  readOutputTree(targetPath: string): Promise<OutputTreeResult>;
   scanDefaultRoot(): Promise<ScanEntry[]>;
   startUnpack(request: UnpackRequest): Promise<void>;
   subscribeJobEvents(listener: (event: JobEvent) => void): () => void;

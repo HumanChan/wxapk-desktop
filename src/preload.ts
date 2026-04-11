@@ -1,7 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import { IPC_CHANNELS } from './shared/channels';
-import type { JobEvent, ScanEntry, UnpackRequest, WxapkgDesktopApi } from './shared/types';
+import type {
+  JobEvent,
+  OutputTreeResult,
+  ScanEntry,
+  ScanRootSelection,
+  UnpackRequest,
+  WxapkgDesktopApi,
+} from './shared/types';
 
 const api: WxapkgDesktopApi = {
   cancelJob(jobId: string) {
@@ -15,6 +22,12 @@ const api: WxapkgDesktopApi = {
   },
   pickOutputDir() {
     return ipcRenderer.invoke(IPC_CHANNELS.pickOutputDir) as Promise<string | null>;
+  },
+  pickScanRoot() {
+    return ipcRenderer.invoke(IPC_CHANNELS.pickScanRoot) as Promise<ScanRootSelection | null>;
+  },
+  readOutputTree(targetPath: string) {
+    return ipcRenderer.invoke(IPC_CHANNELS.readOutputTree, targetPath) as Promise<OutputTreeResult>;
   },
   scanDefaultRoot() {
     return ipcRenderer.invoke(IPC_CHANNELS.scanDefaultRoot) as Promise<ScanEntry[]>;
