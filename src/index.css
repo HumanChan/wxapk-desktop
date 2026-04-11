@@ -1,3 +1,4 @@
+@import "@fontsource-variable/geist";
 @import "tailwindcss";
 
 @source "./**/*.{ts,tsx,html}";
@@ -6,8 +7,8 @@
 
 @theme inline {
   --font-sans:
-    "Microsoft YaHei UI", "Segoe UI Variable", "PingFang SC", "Hiragino Sans GB",
-    sans-serif;
+    "Geist Variable", "Microsoft YaHei UI", "Segoe UI Variable", "PingFang SC",
+    "Hiragino Sans GB", sans-serif;
   --font-mono: "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
 
   --color-background: hsl(var(--background));
@@ -44,62 +45,62 @@
 }
 
 :root {
-  --background: 42 44% 98%;
-  --foreground: 218 31% 14%;
+  --background: 220 33% 98%;
+  --foreground: 222 30% 12%;
   --card: 0 0% 100%;
-  --card-foreground: 218 31% 14%;
+  --card-foreground: 222 30% 12%;
   --popover: 0 0% 100%;
-  --popover-foreground: 218 31% 14%;
-  --primary: 174 67% 39%;
+  --popover-foreground: 222 30% 12%;
+  --primary: 224 76% 56%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 37 63% 95%;
-  --secondary-foreground: 219 27% 22%;
-  --muted: 210 30% 95%;
-  --muted-foreground: 215 15% 44%;
-  --accent: 31 92% 61%;
-  --accent-foreground: 218 31% 14%;
-  --destructive: 2 75% 56%;
-  --border: 216 21% 87%;
-  --input: 216 21% 87%;
-  --ring: 174 67% 39%;
-  --radius: 1rem;
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 218 31% 14%;
-  --sidebar-primary: 174 67% 39%;
+  --secondary: 220 23% 95%;
+  --secondary-foreground: 222 24% 18%;
+  --muted: 220 23% 95%;
+  --muted-foreground: 221 16% 44%;
+  --accent: 215 100% 97%;
+  --accent-foreground: 222 30% 12%;
+  --destructive: 2 78% 58%;
+  --border: 220 21% 89%;
+  --input: 220 21% 89%;
+  --ring: 224 76% 56%;
+  --radius: 1.15rem;
+  --sidebar: 220 25% 99%;
+  --sidebar-foreground: 222 30% 12%;
+  --sidebar-primary: 224 76% 56%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 37 63% 95%;
-  --sidebar-accent-foreground: 218 31% 14%;
-  --sidebar-border: 216 21% 87%;
-  --sidebar-ring: 174 67% 39%;
+  --sidebar-accent: 220 23% 95%;
+  --sidebar-accent-foreground: 222 30% 12%;
+  --sidebar-border: 220 21% 89%;
+  --sidebar-ring: 224 76% 56%;
 }
 
 .dark {
-  --background: 215 44% 8%;
-  --foreground: 210 40% 96%;
-  --card: 214 34% 12%;
-  --card-foreground: 210 40% 96%;
-  --popover: 214 34% 12%;
-  --popover-foreground: 210 40% 96%;
-  --primary: 173 68% 44%;
+  --background: 228 24% 7%;
+  --foreground: 220 17% 92%;
+  --card: 228 20% 10%;
+  --card-foreground: 220 17% 92%;
+  --popover: 228 20% 10%;
+  --popover-foreground: 220 17% 92%;
+  --primary: 222 85% 66%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 219 32% 18%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 219 28% 17%;
-  --muted-foreground: 214 16% 72%;
-  --accent: 33 94% 62%;
-  --accent-foreground: 215 44% 8%;
-  --destructive: 0 68% 56%;
-  --border: 219 24% 24%;
-  --input: 219 24% 24%;
-  --ring: 173 68% 44%;
-  --sidebar: 214 38% 10%;
-  --sidebar-foreground: 210 40% 96%;
-  --sidebar-primary: 173 68% 44%;
+  --secondary: 225 16% 14%;
+  --secondary-foreground: 220 17% 92%;
+  --muted: 225 16% 14%;
+  --muted-foreground: 220 10% 68%;
+  --accent: 225 16% 16%;
+  --accent-foreground: 220 17% 92%;
+  --destructive: 0 72% 58%;
+  --border: 225 14% 20%;
+  --input: 225 14% 20%;
+  --ring: 222 85% 66%;
+  --sidebar: 228 20% 9%;
+  --sidebar-foreground: 220 17% 92%;
+  --sidebar-primary: 222 85% 66%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 219 28% 17%;
-  --sidebar-accent-foreground: 210 40% 96%;
-  --sidebar-border: 219 24% 24%;
-  --sidebar-ring: 173 68% 44%;
+  --sidebar-accent: 225 16% 14%;
+  --sidebar-accent-foreground: 220 17% 92%;
+  --sidebar-border: 225 14% 20%;
+  --sidebar-ring: 222 85% 66%;
 }
 
 @layer base {
@@ -116,13 +117,18 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background-image:
-      radial-gradient(circle at top left, hsl(var(--primary) / 0.18), transparent 26%),
-      radial-gradient(circle at top right, hsl(var(--accent) / 0.14), transparent 32%),
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.16), transparent 24%),
+      radial-gradient(circle at top right, hsl(206 100% 68% / 0.12), transparent 28%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+    text-rendering: optimizeLegibility;
   }
 
   button,
   input {
     @apply font-sans;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.24);
   }
 }
