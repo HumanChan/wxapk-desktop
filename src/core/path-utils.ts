@@ -52,7 +52,7 @@ export function deriveAppletContext(appDir: string): AppletContext {
     if (
       segments[index]?.toLowerCase() === 'packages' &&
       index > 0 &&
-      segments[index - 1]?.toLowerCase() === 'applet'
+      ['applet', '.wxapplet'].includes(segments[index - 1]?.toLowerCase() ?? '')
     ) {
       packagesIndex = index;
       break;
@@ -68,11 +68,16 @@ export function deriveAppletContext(appDir: string): AppletContext {
     };
   }
 
+  const appletDirName = segments[packagesIndex - 1]?.toLowerCase() ?? '';
+  const appletRoot = segments.slice(0, packagesIndex).join(path.sep);
   const userRoot = segments.slice(0, packagesIndex - 1).join(path.sep);
   const packagesRoot = segments.slice(0, packagesIndex + 1).join(path.sep);
 
   return {
-    iconDir: path.join(userRoot, 'applet', 'icon'),
+    iconDir:
+      appletDirName === '.wxapplet'
+        ? path.join(appletRoot, 'icon')
+        : path.join(appletRoot, 'icon'),
     packagesRoot,
     userId: path.basename(userRoot) || null,
     userRoot,

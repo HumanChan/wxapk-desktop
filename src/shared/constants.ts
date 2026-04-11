@@ -1,5 +1,18 @@
+import os from 'node:os';
+import path from 'node:path';
+
 export const DEFAULT_SCAN_ROOT =
-  'C:\\Users\\admin\\AppData\\Roaming\\Tencent\\xwechat\\radium\\users';
+  process.platform === 'darwin'
+    ? path.join(
+        os.homedir(),
+        'Library',
+        'Containers',
+        'com.tencent.xinWeChat',
+        'Data',
+        '.wxapplet',
+        'packages',
+      )
+    : 'C:\\Users\\admin\\AppData\\Roaming\\Tencent\\xwechat\\radium\\users';
 
 export const APP_PROTOCOL = 'app';
 

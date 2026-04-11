@@ -11,6 +11,18 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 import { mainConfig } from './webpack.main.config';
 import { rendererConfig } from './webpack.renderer.config';
 
+const DEV_CONTENT_SECURITY_POLICY = [
+  "default-src 'self' app: data: blob: 'unsafe-inline'",
+  "img-src 'self' app: data: blob:",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' data:",
+  "style-src 'self' 'unsafe-inline'",
+  "connect-src 'self' app: ws: http: https:",
+  "font-src 'self' data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
@@ -25,6 +37,7 @@ const config: ForgeConfig = {
   plugins: [
     new AutoUnpackNativesPlugin({}),
     new WebpackPlugin({
+      devContentSecurityPolicy: DEV_CONTENT_SECURITY_POLICY,
       mainConfig,
       renderer: {
         config: rendererConfig,

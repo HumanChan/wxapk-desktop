@@ -77,3 +77,43 @@ test('manual scan can group wxapkg files from an arbitrary directory', async () 
     await fs.rm(tempRoot, { force: true, recursive: true });
   }
 });
+
+test('default scan supports packages root directly (macOS style)', async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wxapkg-mac-root-'));
+
+  try {
+    const appId = 'wxabcdef1234567890';
+    await createFile(path.join(tempRoot, appId, 'main.wxapkg'), 'fake');
+
+    const entries = await scanDefaultUsersRoot(tempRoot);
+
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].wxid, appId);
+    assert.equal(entries[0].inputKind, 'appDir');
+    assert.equal(entries[0].wxapkgFiles.length, 1);
+  } finally {
+    await fs.rm(tempRoot, { force: true, recursive: true });
+  }
+});
+
+test('manual scan resolves icons from .wxapplet/icon directory', async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wxapkg-mac-icon-'));
+
+  try {
+    const appId = 'wx1122334455667788';
+    const appDir = path.join(tempRoot, '.wxapplet', 'packages', appId);
+    await createFile(path.join(appDir, 'main.wxapkg'), 'fake');
+    await createFile(
+      path.join(tempRoot, '.wxapplet', 'icon', `${appId}.png`),
+      'icon',
+    );
+
+    const entries = await scanManualInput(path.join(tempRoot, '.wxapplet', 'packages'));
+
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].wxid, appId);
+    assert.ok(entries[0].iconPath?.endsWith('.png'));
+  } finally {
+    await fs.rm(tempRoot, { force: true, recursive: true });
+  }
+});

@@ -117,7 +117,7 @@ const TEXT = {
   waiting: '\u7b49\u5f85\u5f00\u59cb\u89e3\u5305',
 };
 
-const ARCHIVE_ROOT_LABEL = 'radium\\\\users\\\\*\\\\applet\\\\packages';
+const ARCHIVE_ROOT_LABEL = '默认缓存目录（Windows / macOS）';
 
 const EMPTY_JOB: JobViewState = {
   error: null,

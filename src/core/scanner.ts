@@ -68,21 +68,36 @@ async function resolveIconPath(
     return null;
   }
 
-  try {
-    const entries = await fs.readdir(iconDir, { withFileTypes: true });
-    const match = entries
-      .filter(
-        (entry) =>
-          entry.isFile() &&
-          entry.name.toLowerCase().startsWith(`${wxid.toLowerCase()}_`) &&
-          IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase()),
-      )
-      .sort((left, right) => left.name.localeCompare(right.name))[0];
-
-    return match ? path.join(iconDir, match.name) : null;
-  } catch {
-    return null;
+  const candidates = new Set<string>([iconDir]);
+  const baseName = path.basename(iconDir).toLowerCase();
+  if (baseName === 'icon') {
+    candidates.add(path.join(path.dirname(iconDir), 'icons'));
+  } else if (baseName === 'icons') {
+    candidates.add(path.join(path.dirname(iconDir), 'icon'));
   }
+
+  for (const dir of candidates) {
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      const match = entries
+        .filter(
+          (entry) =>
+            entry.isFile() &&
+            (entry.name.toLowerCase() === `${wxid.toLowerCase()}${path.extname(entry.name).toLowerCase()}` ||
+              entry.name.toLowerCase().startsWith(`${wxid.toLowerCase()}_`)) &&
+            IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase()),
+        )
+        .sort((left, right) => left.name.localeCompare(right.name))[0];
+
+      if (match) {
+        return path.join(dir, match.name);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 async function createScanEntry(args: {
@@ -118,8 +133,36 @@ export async function scanDefaultUsersRoot(root: string): Promise<ScanEntry[]> {
     throw new Error(`Default scan root not found: ${root}`);
   }
 
-  const userDirs = await readDirectoryNames(root);
   const results: ScanEntry[] = [];
+  const rootDirNames = await readDirectoryNames(root);
+  const looksLikePackagesRoot = rootDirNames.some((name) => isWxid(name));
+
+  if (looksLikePackagesRoot) {
+    for (const appDirName of rootDirNames) {
+      if (!isWxid(appDirName)) {
+        continue;
+      }
+
+      const appDir = path.join(root, appDirName);
+      const packageFiles = await findWxapkgFiles(appDir);
+      if (packageFiles.length === 0) {
+        continue;
+      }
+
+      results.push(
+        await createScanEntry({
+          appDir,
+          inputKind: 'appDir',
+          packageFile: null,
+          source: 'default-scan',
+          wxapkgFiles: packageFiles,
+          wxid: appDirName,
+        }),
+      );
+    }
+  }
+
+  const userDirs = rootDirNames;
 
   for (const userDir of userDirs) {
     const userRoot = path.join(root, userDir);
