@@ -19,9 +19,6 @@ import { APP_PROTOCOL, DEFAULT_SCAN_ROOT } from './shared/constants';
 import type { JobEvent, ScanEntry, UnpackRequest, WorkerRequest, WorkerResponse } from './shared/types';
 import { IconRegistry } from './main/icon-registry';
 
-declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
-declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
-
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
@@ -41,13 +38,25 @@ const iconRegistry = new IconRegistry();
 const activeJobs = new Map<string, { sender: WebContents; worker: Worker }>();
 const cancelledJobs = new Set<string>();
 const rendererRoot = path.resolve(__dirname, '../renderer');
-const isDev = !app.isPackaged;
-const CSP_HEADER = [
+const preloadPath = path.join(__dirname, 'preload.js');
+const isDev = Boolean(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+const PROD_CSP_HEADER = [
   "default-src 'self' app: data: blob:",
   "img-src 'self' app: data: blob:",
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self'",
   "connect-src 'self'",
+  "font-src 'self' data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+const DEV_CSP_HEADER = [
+  "default-src 'self' app: data: blob: 'unsafe-inline'",
+  "img-src 'self' app: data: blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' data: blob:",
+  "connect-src 'self' app: data: blob: ws: http: https:",
   "font-src 'self' data:",
   "object-src 'none'",
   "base-uri 'self'",
@@ -155,7 +164,7 @@ async function handleAppProtocol(request: Request): Promise<Response> {
       const assetPath = resolveBundlePath(requestUrl.pathname);
       const headers =
         path.extname(assetPath).toLowerCase() === '.html'
-          ? { 'content-security-policy': CSP_HEADER }
+          ? { 'content-security-policy': PROD_CSP_HEADER }
           : undefined;
       return await fileResponse(assetPath, headers);
     }
@@ -177,6 +186,32 @@ async function handleAppProtocol(request: Request): Promise<Response> {
   }
 
   return createTextResponse(404, 'Not found');
+}
+
+function isDevServerRequest(targetUrl: string): boolean {
+  return Boolean(MAIN_WINDOW_VITE_DEV_SERVER_URL) &&
+    targetUrl.startsWith(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+}
+
+function installDevContentSecurityPolicy(): void {
+  if (!isDev) {
+    return;
+  }
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    if (!isDevServerRequest(details.url) || details.resourceType !== 'mainFrame') {
+      callback({ cancel: false, responseHeaders: details.responseHeaders });
+      return;
+    }
+
+    callback({
+      cancel: false,
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [DEV_CSP_HEADER],
+      },
+    });
+  });
 }
 
 function attachIconUrls(entries: ScanEntry[]): ScanEntry[] {
@@ -355,7 +390,7 @@ function createWindow(): void {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      preload: preloadPath,
       sandbox: true,
     },
   });
@@ -372,7 +407,7 @@ function createWindow(): void {
   });
 
   if (isDev) {
-    void mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+    void mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     void mainWindow.loadURL(`${APP_PROTOCOL}://bundle/main_window/index.html`);
   }
@@ -399,6 +434,7 @@ app.on('activate', () => {
 
 void app.whenReady().then(async () => {
   await protocol.handle(APP_PROTOCOL, handleAppProtocol);
+  installDevContentSecurityPolicy();
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
     callback(false),
   );

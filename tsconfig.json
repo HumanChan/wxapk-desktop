@@ -2,21 +2,17 @@
   "compilerOptions": {
     "target": "ES2022",
     "allowJs": true,
-    "module": "commonjs",
+    "module": "ESNext",
     "lib": ["ES2022", "DOM"],
     "skipLibCheck": true,
     "esModuleInterop": true,
     "strict": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "outDir": "dist",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "resolveJsonModule": true,
-    "types": ["node"],
-    "paths": {
-      "*": ["node_modules/*"]
-    }
+    "types": ["node", "react", "react-dom"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "forge.config.ts", "vite*.config.ts"]
 }
