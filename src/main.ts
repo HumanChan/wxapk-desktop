@@ -20,8 +20,15 @@ import { APP_PROTOCOL, DEFAULT_SCAN_ROOT } from './shared/constants';
 import type { JobEvent, ScanEntry, UnpackRequest, WorkerRequest, WorkerResponse } from './shared/types';
 import { IconRegistry } from './main/icon-registry';
 
-if (require('electron-squirrel-startup')) {
-  app.quit();
+if (process.platform === 'win32') {
+  try {
+    // Windows Squirrel installers may relaunch the app during setup/update.
+    if (require('electron-squirrel-startup')) {
+      app.quit();
+    }
+  } catch {
+    // The helper is not needed outside Squirrel flows; keep startup resilient.
+  }
 }
 
 protocol.registerSchemesAsPrivileged([
