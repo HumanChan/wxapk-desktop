@@ -96,7 +96,9 @@ const TEXT = {
   defaultRoot: '默认缓存目录',
   defaultScanDone: '默认目录扫描',
   defaultScanStart: '开始扫描默认目录',
+  discoveredApps: '已发现',
   emptyApps: '当前没有可展示的小程序记录',
+  emptyAppsNoIcon: '扫描到的小程序都缺少图标，已按规则过滤。',
   emptyLogs: '日志会在这里持续输出扫描、解包和文件树加载过程。',
   emptyOutput: '尚未选择',
   emptyPackages: '当前项目没有可展示的包文件。',
@@ -393,6 +395,10 @@ function clampListPanelWidth(nextWidth: number, containerWidth?: number): number
   return Math.min(Math.max(nextWidth, LIST_PANEL_MIN_WIDTH), maxWidth);
 }
 
+function hasListableIcon(entry: ScanEntry): boolean {
+  return Boolean(entry.iconUrl || entry.iconPath);
+}
+
 function sortTreeNodes(nodes: OutputTreeNode[]): OutputTreeNode[] {
   return nodes.sort((left, right) => {
     if (left.kind !== right.kind) {
@@ -659,6 +665,7 @@ function TopToolbar({
 function ListPanel({
   entries,
   filteredEntries,
+  hiddenNoIconCount,
   isRefreshDisabled,
   isScanning,
   keyword,
@@ -669,6 +676,7 @@ function ListPanel({
 }: {
   entries: ScanEntry[];
   filteredEntries: ScanEntry[];
+  hiddenNoIconCount: number;
   isRefreshDisabled: boolean;
   isScanning: boolean;
   keyword: string;
@@ -702,6 +710,10 @@ function ListPanel({
       </div>
 
       <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-[1.5rem] border border-border/60 bg-slate-50/70 p-2 dark:bg-white/[0.03]">
+        <div className="flex items-center justify-between px-2 pb-2 text-[11px] font-medium text-muted-foreground">
+          <span>{TEXT.discoveredApps} {entries.length} 个小程序</span>
+          {keyword.trim() ? <span>筛选后 {filteredEntries.length} 个</span> : null}
+        </div>
         <ScrollArea className="h-full pr-1">
           <div className="space-y-2">
             {filteredEntries.length > 0 ? (
@@ -739,7 +751,11 @@ function ListPanel({
               })
             ) : (
               <div className="rounded-[1.35rem] border border-dashed border-slate-300/80 px-4 py-10 text-center text-sm text-muted-foreground dark:border-white/15">
-                {isScanning ? TEXT.scanning : entries.length === 0 ? TEXT.emptySelection : TEXT.emptyApps}
+                {isScanning
+                  ? TEXT.scanning
+                  : entries.length === 0
+                    ? (hiddenNoIconCount > 0 ? TEXT.emptyAppsNoIcon : TEXT.emptySelection)
+                    : TEXT.emptyApps}
               </div>
             )}
           </div>
@@ -1191,6 +1207,7 @@ export function App(): React.JSX.Element {
   const [isScanning, setIsScanning] = useState(false);
   const [isListOpen, setIsListOpen] = useState(false);
   const [listPanelWidth, setListPanelWidth] = useState(LIST_PANEL_DEFAULT_WIDTH);
+  const [hiddenNoIconCount, setHiddenNoIconCount] = useState(0);
   const [scanError, setScanError] = useState<string | null>(null);
   const [job, setJob] = useState<JobViewState>(EMPTY_JOB);
   const [logs, setLogs] = useState<LogItem[]>([]);
@@ -1288,21 +1305,27 @@ export function App(): React.JSX.Element {
   }
 
   function applyEntries(nextEntries: ScanEntry[], source: string): void {
+    const visibleEntries = nextEntries.filter(hasListableIcon);
+    const nextHiddenNoIconCount = nextEntries.length - visibleEntries.length;
+
     startTransition(() => {
-      setEntries(nextEntries);
+      setEntries(visibleEntries);
       setSelectedId((current) => (
-        nextEntries.some((entry) => entry.id === current)
+        visibleEntries.some((entry) => entry.id === current)
           ? current
-          : (nextEntries[0]?.id ?? null)
+          : (visibleEntries[0]?.id ?? null)
       ));
     });
 
+    setHiddenNoIconCount(nextHiddenNoIconCount);
     setScanError(null);
     setActiveTab('packages');
     pushLog(
-      nextEntries.length > 0
-        ? `${source}完成，共发现 ${nextEntries.length} 个可解包项目`
-        : `${source}${TEXT.noAppFound}`,
+      visibleEntries.length > 0
+        ? `${source}完成，共发现 ${visibleEntries.length} 个可展示项目${nextHiddenNoIconCount > 0 ? `，已过滤 ${nextHiddenNoIconCount} 个缺少图标的项目` : ''}`
+        : nextHiddenNoIconCount > 0
+          ? `${source}完成，已过滤 ${nextHiddenNoIconCount} 个缺少图标的项目`
+          : `${source}${TEXT.noAppFound}`,
       'success',
     );
   }
@@ -1770,6 +1793,7 @@ export function App(): React.JSX.Element {
             <ListPanel
               entries={entries}
               filteredEntries={filteredEntries}
+              hiddenNoIconCount={hiddenNoIconCount}
               isRefreshDisabled={!canRefreshList}
               isScanning={isScanning}
               keyword={keyword}
@@ -1816,6 +1840,7 @@ export function App(): React.JSX.Element {
                     <ListPanel
                       entries={entries}
                       filteredEntries={filteredEntries}
+                      hiddenNoIconCount={hiddenNoIconCount}
                       isRefreshDisabled={!canRefreshList}
                       isScanning={isScanning}
                       keyword={keyword}
