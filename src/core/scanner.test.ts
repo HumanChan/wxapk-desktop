@@ -46,6 +46,14 @@ test('default scan finds wxapps and matches icons by wxid prefix', async () => {
     assert.ok(second);
     assert.ok(first.iconPath?.endsWith('.png'));
     assert.equal(second.iconPath, null);
+    assert.equal(
+      first.localAppDir,
+      path.join(userRoot, 'applet', 'local', appOne),
+    );
+    assert.equal(
+      second.localAppDir,
+      path.join(userRoot, 'applet', 'local', appTwo),
+    );
     assert.equal(first.wxapkgFiles.length, 1);
     assert.equal(second.wxapkgFiles.length, 1);
     assert.equal(first.wxapkgFiles[0].relativePath, 'main.wxapkg');
@@ -74,6 +82,7 @@ test('manual scan can group wxapkg files from an arbitrary directory', async () 
     assert.equal(entries.length, 1);
     assert.equal(entries[0].wxid, appId);
     assert.equal(entries[0].inputKind, 'appDir');
+    assert.equal(entries[0].localAppDir, null);
     assert.equal(entries[0].wxapkgFiles.length, 2);
     assert.equal(entries[0].wxapkgFiles[0].relativePath, 'part1.wxapkg');
     assert.equal(entries[0].wxapkgFiles[1].relativePath, path.join('sub', 'part2.wxapkg'));
@@ -94,6 +103,7 @@ test('default scan supports packages root directly (macOS style)', async () => {
     assert.equal(entries.length, 1);
     assert.equal(entries[0].wxid, appId);
     assert.equal(entries[0].inputKind, 'appDir');
+    assert.equal(entries[0].localAppDir, null);
     assert.equal(entries[0].wxapkgFiles.length, 1);
   } finally {
     await fs.rm(tempRoot, { force: true, recursive: true });
@@ -117,6 +127,10 @@ test('manual scan resolves icons from .wxapplet/icon directory', async () => {
     assert.equal(entries.length, 1);
     assert.equal(entries[0].wxid, appId);
     assert.ok(entries[0].iconPath?.endsWith('.png'));
+    assert.equal(
+      entries[0].localAppDir,
+      path.join(tempRoot, '.wxapplet', 'local', appId),
+    );
   } finally {
     await fs.rm(tempRoot, { force: true, recursive: true });
   }

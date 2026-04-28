@@ -4,6 +4,7 @@ const WXID_PATTERN = /^wx[0-9a-f]{16,18}$/i;
 
 export interface AppletContext {
   iconDir: string | null;
+  localRoot: string | null;
   packagesRoot: string | null;
   userId: string | null;
   userRoot: string | null;
@@ -62,6 +63,7 @@ export function deriveAppletContext(appDir: string): AppletContext {
   if (packagesIndex < 1) {
     return {
       iconDir: null,
+      localRoot: null,
       packagesRoot: null,
       userId: null,
       userRoot: null,
@@ -78,6 +80,7 @@ export function deriveAppletContext(appDir: string): AppletContext {
       appletDirName === '.wxapplet'
         ? path.join(appletRoot, 'icon')
         : path.join(appletRoot, 'icon'),
+    localRoot: path.join(appletRoot, 'local'),
     packagesRoot,
     userId: path.basename(userRoot) || null,
     userRoot,

@@ -36,6 +36,7 @@ export interface ScanEntry {
   iconUrl: string | null;
   id: string;
   inputKind: ScanEntryInputKind;
+  localAppDir: string | null;
   packageFile: string | null;
   packagesRoot: string | null;
   source: ScanEntrySource;

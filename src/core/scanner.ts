@@ -119,6 +119,10 @@ async function createScanEntry(args: {
     iconUrl: null,
     id: randomUUID(),
     inputKind: args.inputKind,
+    localAppDir:
+      appletContext.localRoot && args.wxid
+        ? path.join(appletContext.localRoot, args.wxid)
+        : null,
     packageFile: args.packageFile,
     packagesRoot: appletContext.packagesRoot,
     source: args.source,

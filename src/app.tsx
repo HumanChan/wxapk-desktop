@@ -1606,7 +1606,8 @@ export function App(): React.JSX.Element {
       return;
     }
 
-    await openPathWithFeedback(selectedEntry.appDir, '打开缓存目录失败：');
+    const targetPath = selectedEntry.localAppDir ?? selectedEntry.appDir;
+    await openPathWithFeedback(targetPath, '打开缓存目录失败：');
   }
 
   async function openSelectedOutputDirectory(pathOverride?: string): Promise<void> {
@@ -1786,7 +1787,7 @@ export function App(): React.JSX.Element {
     {
       disabled: !selectedEntry,
       label: TEXT.copyGameCache,
-      onSelect: () => copyValue('缓存路径 ', selectedEntry?.appDir ?? null),
+      onSelect: () => copyValue('缓存路径 ', selectedEntry?.localAppDir ?? selectedEntry?.appDir ?? null),
     },
     {
       disabled: !selectedOutputDir,
