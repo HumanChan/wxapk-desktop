@@ -34,6 +34,7 @@ import { Input } from './components/ui/input';
 import { Progress } from './components/ui/progress';
 import { ScrollArea } from './components/ui/scroll-area';
 import { Switch } from './components/ui/switch';
+import { formatScanError } from './shared/error-utils';
 import type {
   JobEvent,
   JobEventType,
@@ -114,6 +115,7 @@ const TEXT = {
   inputDir: '输入目录',
   inputDirDone: '自定义目录扫描',
   inputDirOpen: '选择扫描根目录',
+  inputDirRetry: '手动选择扫描目录',
   inputTypeDir: '目录项目',
   inputTypeFile: '单文件包',
   listPlaceholder: '搜索 wxid / 路径 / 包文件',
@@ -1209,6 +1211,7 @@ export function App(): React.JSX.Element {
   const [listPanelWidth, setListPanelWidth] = useState(LIST_PANEL_DEFAULT_WIDTH);
   const [hiddenNoIconCount, setHiddenNoIconCount] = useState(0);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanErrorSuggestManualPick, setScanErrorSuggestManualPick] = useState(false);
   const [job, setJob] = useState<JobViewState>(EMPTY_JOB);
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [activeTab, setActiveTab] = useState<PreviewTab>('packages');
@@ -1318,7 +1321,7 @@ export function App(): React.JSX.Element {
     });
 
     setHiddenNoIconCount(nextHiddenNoIconCount);
-    setScanError(null);
+    clearScanError();
     setActiveTab('packages');
     pushLog(
       visibleEntries.length > 0
@@ -1330,9 +1333,24 @@ export function App(): React.JSX.Element {
     );
   }
 
+  function clearScanError(): void {
+    setScanError(null);
+    setScanErrorSuggestManualPick(false);
+  }
+
+  function handleScanError(error: unknown): void {
+    const formatted = formatScanError(error);
+    const nextMessage = `${TEXT.scanFail}${formatted.message}`;
+
+    setScanError(nextMessage);
+    setScanErrorSuggestManualPick(formatted.suggestManualPick);
+    pushLog(nextMessage, 'error');
+  }
+
   async function openPathWithFeedback(targetPath: string, failurePrefix: string): Promise<void> {
     const result = await window.wxapkg.openPath(targetPath);
     if (result) {
+      setScanErrorSuggestManualPick(false);
       setScanError(`${failurePrefix}${result}`);
       pushLog(`${failurePrefix}${result}`, 'error');
     }
@@ -1385,7 +1403,7 @@ export function App(): React.JSX.Element {
 
   async function scanRootEntries(rootPath: string, sourceLabel: string): Promise<void> {
     setIsScanning(true);
-    setScanError(null);
+    clearScanError();
     pushLog(`${TEXT.inputDirOpen}: ${rootPath}`);
 
     try {
@@ -1395,9 +1413,7 @@ export function App(): React.JSX.Element {
       setScanRootLabel(rootPath);
       applyEntries(nextEntries, sourceLabel);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setScanError(`${TEXT.scanFail}${message}`);
-      pushLog(`${TEXT.scanFail}${message}`, 'error');
+      handleScanError(error);
     } finally {
       setIsScanning(false);
     }
@@ -1405,7 +1421,7 @@ export function App(): React.JSX.Element {
 
   async function scanDefaultRoot(): Promise<void> {
     setIsScanning(true);
-    setScanError(null);
+    clearScanError();
     pushLog(TEXT.defaultScanStart);
 
     try {
@@ -1417,9 +1433,7 @@ export function App(): React.JSX.Element {
       setCanRefreshList(true);
       applyEntries(nextEntries, TEXT.defaultScanDone);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setScanError(`${TEXT.scanFail}${message}`);
-      pushLog(`${TEXT.scanFail}${message}`, 'error');
+      handleScanError(error);
     } finally {
       setIsScanning(false);
     }
@@ -1427,7 +1441,7 @@ export function App(): React.JSX.Element {
 
   async function pickScanRoot(): Promise<void> {
     setIsScanning(true);
-    setScanError(null);
+    clearScanError();
     pushLog(TEXT.inputDirOpen);
 
     try {
@@ -1442,9 +1456,7 @@ export function App(): React.JSX.Element {
       setScanRootLabel(result.rootPath);
       applyEntries(result.entries, TEXT.inputDirDone);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setScanError(`${TEXT.scanFail}${message}`);
-      pushLog(`${TEXT.scanFail}${message}`, 'error');
+      handleScanError(error);
     } finally {
       setIsScanning(false);
     }
@@ -1452,7 +1464,7 @@ export function App(): React.JSX.Element {
 
   async function importInput(): Promise<void> {
     setIsScanning(true);
-    setScanError(null);
+    clearScanError();
     pushLog(TEXT.importOpen);
 
     try {
@@ -1466,9 +1478,7 @@ export function App(): React.JSX.Element {
       setScanRootLabel(TEXT.importInput);
       applyEntries(nextEntries, TEXT.importDone);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setScanError(`${TEXT.scanFail}${message}`);
-      pushLog(`${TEXT.scanFail}${message}`, 'error');
+      handleScanError(error);
     } finally {
       setIsScanning(false);
     }
@@ -1492,12 +1502,13 @@ export function App(): React.JSX.Element {
     }
 
     setOutputDir(nextOutputDir);
-    setScanError(null);
+    clearScanError();
     pushLog(`${TEXT.pickOutputDone} ${nextOutputDir}`);
   }
 
   async function startUnpack(): Promise<void> {
     if (!selectedEntry || !outputDir.trim() || !resolvedWxid) {
+      setScanErrorSuggestManualPick(false);
       setScanError(TEXT.chooseFirst);
       return;
     }
@@ -1523,7 +1534,7 @@ export function App(): React.JSX.Element {
       type: 'started',
       wxid: resolvedWxid,
     });
-    setScanError(null);
+    clearScanError();
     setActiveTab('logs');
     pushLog(`${TEXT.submitJob}${resolvedWxid}`);
 
@@ -1885,8 +1896,19 @@ export function App(): React.JSX.Element {
             />
 
             {scanError ? (
-              <div className="rounded-[1.5rem] border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
-                {scanError}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-destructive/30 bg-destructive/10 px-4 py-4 text-sm text-destructive">
+                <div className="min-w-0 flex-1">{scanError}</div>
+                {scanErrorSuggestManualPick ? (
+                  <Button
+                    className="shrink-0"
+                    onClick={() => void pickScanRoot()}
+                    type="button"
+                    variant="outline"
+                  >
+                    <HardDriveDownload />
+                    {TEXT.inputDirRetry}
+                  </Button>
+                ) : null}
               </div>
             ) : null}
 
