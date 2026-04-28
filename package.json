@@ -1,6 +1,6 @@
 {
   "name": "wxapkg-desktop",
-  "productName": "wxapkg Desktop",
+  "productName": "WxApkTool",
   "version": "1.0.0",
   "description": "Electron and React desktop tool for unpacking WeChat wxapkg archives",
   "main": ".vite/build/main.js",

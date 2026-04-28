@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="156" y1="120" x2="844" y2="912" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#123D4A"/>
+      <stop offset="0.52" stop-color="#0B6075"/>
+      <stop offset="1" stop-color="#13A3C7"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="304" y1="272" x2="738" y2="744" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FDFF"/>
+      <stop offset="1" stop-color="#D9F7FF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="492" y1="402" x2="746" y2="656" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0C6D84"/>
+      <stop offset="1" stop-color="#12B4D9"/>
+    </linearGradient>
+    <filter id="shadow" x="205" y="186" width="614" height="658" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="28"/>
+      <feGaussianBlur stdDeviation="28"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.016 0 0 0 0 0.179 0 0 0 0 0.233 0 0 0 0.22 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect x="40" y="40" width="944" height="944" rx="224" fill="url(#bg)"/>
+  <path d="M240 176C333 92 501 66 638 92C760 115 874 198 912 314C826 272 744 248 648 242C494 232 350 284 240 380V176Z" fill="white" fill-opacity="0.08"/>
+  <path d="M160 760C254 842 368 886 492 892C686 901 834 804 894 664C822 716 744 748 652 762C458 792 278 758 160 664V760Z" fill="#042834" fill-opacity="0.14"/>
+
+  <g filter="url(#shadow)">
+    <path d="M318 274C318 252 336 234 358 234H576L706 364V710C706 732 688 750 666 750H358C336 750 318 732 318 710V274Z" fill="url(#panel)"/>
+    <path d="M576 234V332C576 354 594 372 616 372H706" fill="#D4F3FB"/>
+    <path d="M576 234V332C576 354 594 372 616 372H706" stroke="#A8E5F2" stroke-width="20" stroke-linejoin="round"/>
+    <path d="M404 430H530" stroke="#3A7990" stroke-width="34" stroke-linecap="round"/>
+    <path d="M404 520H598" stroke="#3A7990" stroke-width="34" stroke-linecap="round"/>
+    <path d="M404 610H546" stroke="#3A7990" stroke-width="34" stroke-linecap="round"/>
+    <path d="M664 432C681 432 695 446 695 463C695 476 687 487 674 492L650 504L707 561C715 569 715 582 707 590L686 611C678 619 665 619 657 611L600 554L588 578C582 591 571 599 557 599C540 599 526 585 526 568C526 563 527 558 530 554L561 470C566 460 574 452 584 447L650 416C654 414 659 412 664 412C681 412 695 426 695 443V432Z" fill="url(#accent)"/>
+    <circle cx="557" cy="568" r="18" fill="#E8FBFF"/>
+  </g>
+</svg>
