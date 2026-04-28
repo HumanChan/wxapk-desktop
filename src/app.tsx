@@ -91,6 +91,7 @@ const TEXT = {
   chooseOutputDir: '输出目录',
   cancelJob: '取消任务',
   copyFailed: '复制失败：',
+  copyGameCache: '复制小游戏缓存路径',
   copyOutput: '复制输出路径',
   copyPath: '复制缓存路径',
   copyWxid: '复制 wxid',
@@ -107,6 +108,7 @@ const TEXT = {
   emptyTree: '当前还没有可展示的输出文件树。开始解包后会自动切换到结果预览。',
   fileDone: '已输出文件数',
   finderCurrent: '打开当前目录',
+  finderGameCache: '打开小游戏缓存',
   finderOutput: '打开输出目录',
   importCancel: '已取消手动导入',
   importDone: '手动导入',
@@ -772,6 +774,7 @@ function InfoStrip({
   canStart,
   job,
   manualWxid,
+  onOpenGameCache,
   onBeautifyChange,
   onManualWxidChange,
   onStartUnpack,
@@ -786,6 +789,7 @@ function InfoStrip({
   canStart: boolean;
   job: JobViewState;
   manualWxid: string;
+  onOpenGameCache: () => Promise<void>;
   onBeautifyChange: (checked: boolean) => void;
   onManualWxidChange: (value: string) => void;
   onStartUnpack: () => Promise<void>;
@@ -815,6 +819,22 @@ function InfoStrip({
               <div className="truncate text-sm text-muted-foreground">
                 {selectedEntry?.appDir ?? TEXT.subtitle}
               </div>
+              {selectedEntry ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge className="rounded-full px-3 py-1" variant="outline">
+                    {TEXT.cachePath}
+                  </Badge>
+                  <Button
+                    className="h-8 rounded-full px-3 text-xs"
+                    onClick={() => void onOpenGameCache()}
+                    type="button"
+                    variant="outline"
+                  >
+                    <FolderOpen className="size-3.5" />
+                    {TEXT.finderGameCache}
+                  </Button>
+                </div>
+              ) : null}
               {selectedEntry ? (
                 <div className="mt-1 truncate text-[11px] text-muted-foreground">
                   {TEXT.inputDir}: {scanRootLabel}
@@ -1745,7 +1765,7 @@ export function App(): React.JSX.Element {
     },
     {
       disabled: !selectedEntry,
-      label: TEXT.openAppDir,
+      label: TEXT.finderGameCache,
       onSelect: openAppDir,
     },
     {
@@ -1765,7 +1785,7 @@ export function App(): React.JSX.Element {
     },
     {
       disabled: !selectedEntry,
-      label: TEXT.copyPath,
+      label: TEXT.copyGameCache,
       onSelect: () => copyValue('缓存路径 ', selectedEntry?.appDir ?? null),
     },
     {
@@ -1884,6 +1904,7 @@ export function App(): React.JSX.Element {
               canStart={canStart}
               job={selectedJob}
               manualWxid={manualWxid}
+              onOpenGameCache={openAppDir}
               onBeautifyChange={setBeautify}
               onManualWxidChange={setManualWxid}
               onStartUnpack={startUnpack}
